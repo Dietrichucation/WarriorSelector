@@ -231,17 +231,18 @@
                 <header className={`${theme.primary} text-white shadow-lg relative z-30 shrink-0`}>
                     <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
                     <div className="flex items-center space-x-4">
-                        <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center overflow-hidden border-4 border-yellow-400 shadow-md flex-shrink-0">
-                        <img 
-                            src="FMSWarriors.gif" 
-                            alt="Logo" 
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                            e.target.onerror = null; 
-                            e.target.src = "https://placehold.co/100x100?text=FW"; 
-                            }}
-                        />
-                        </div>
+                        {/* Logo Container - SQUARED version */}
+<div className="h-20 w-auto min-w-[5rem] bg-white rounded-lg flex items-center justify-center overflow-hidden border-2 border-yellow-400 shadow-md flex-shrink-0 p-1">
+    <img 
+        src="FMSWarriors.gif" 
+        alt="Logo" 
+        className="h-full w-full object-contain"
+        onError={(e) => {
+            e.target.onerror = null; 
+            e.target.src = "https://placehold.co/100x100?text=FW"; 
+        }}
+    />
+</div>
                         <div>
                         <h1 className="text-xl md:text-2xl font-bold tracking-tight text-yellow-400 drop-shadow-sm">Fairview Warriors</h1>
                         <p className="text-green-100 text-xs font-medium">Random Name Selector</p>
