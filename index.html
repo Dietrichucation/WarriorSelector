@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fairview Warriors Selector</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Load Babel (to interpret React code in browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @keyframes fall {
+            0% { top: -10%; transform: rotate(0deg); opacity: 1; }
+            100% { top: 110%; transform: rotate(720deg); opacity: 0; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes zoomIn {
+            0% { transform: scale(0.5) translateY(100px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // --- ICONS (Inline SVGs to avoid complex dependencies) ---
+        const IconUpload = ({ size = 24, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+        );
+        const IconUsers = ({ size = 24, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        );
+        const IconTrash = ({ size = 24, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        );
+        const IconShuffle = ({ size = 24, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l14.2-12.7c.7-1 1.9-1.6 3.1-1.6H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.7.9 3.2 2.2l2.3 3.2c.5 1.3 1.7 2.2 3.2 2.2H22"/><path d="m18 22 4-4-4-4"/></svg>
+        );
+        const IconGauge = ({ size = 24, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+        );
+        const IconX = ({ size = 24, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        );
+
+        // --- COMPONENTS ---
+
+        const Confetti = ({ active }) => {
+            if (!active) return null;
+            
+            const particles = Array.from({ length: 75 }).map((_, i) => ({
+                id: i,
+                x: Math.random() * 100,
+                y: Math.random() * 100,
+                color: ['#FBBF24', '#15803d', '#ffffff'][Math.floor(Math.random() * 3)],
+                delay: Math.random() * 0.5,
+                rotation: Math.random() * 360,
+                scale: Math.random() * 0.5 + 0.5
+            }));
+
+            return (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-50">
+                {particles.map((p) => (
+                    <div
+                    key={p.id}
+                    className="absolute w-3 h-3 rounded-sm animate-[fall_3s_ease-out_forwards]"
+                    style={{
+                        left: `${p.x}%`,
+                        top: `-10%`,
+                        backgroundColor: p.color,
+                        animationDelay: `${p.delay}s`,
+                        transform: `rotate(${p.rotation}deg) scale(${p.scale})`
+                    }}
+                    />
+                ))}
+                </div>
+            );
+        };
+
+        function WarriorSelector() {
+            const [names, setNames] = useState([]);
+            const [inputText, setInputText] = useState('');
+            
+            // Selection State
+            const [highlightedIndex, setHighlightedIndex] = useState(null);
+            const [selectedName, setSelectedName] = useState(null);
+            
+            const [isAnimating, setIsAnimating] = useState(false);
+            const [animationEnabled, setAnimationEnabled] = useState(true);
+            const [speedLevel, setSpeedLevel] = useState(1); // 0: Slow, 1: Normal, 2: Fast
+            const [showWinnerModal, setShowWinnerModal] = useState(false);
+            
+            const fileInputRef = useRef(null);
+            
+            const theme = {
+                primary: "bg-green-700",
+                primaryHover: "hover:bg-green-800",
+                secondary: "bg-yellow-400",
+                secondaryHover: "hover:bg-yellow-500",
+                accent: "text-yellow-400",
+                border: "border-green-700",
+                text: "text-green-900",
+                cardBg: "bg-white",
+                cardHighlight: "bg-yellow-300 ring-4 ring-yellow-400 scale-105 z-10 shadow-xl"
+            };
+
+            const handleTextChange = (e) => {
+                setInputText(e.target.value);
+            };
+
+            const processNames = (text) => {
+                if (!text) return [];
+                return text.split('\n').map(name => name.trim()).filter(name => name.length > 0);
+            };
+
+            const handleAddNames = () => {
+                const newNames = processNames(inputText);
+                if (newNames.length > 0) {
+                setNames(prev => [...prev, ...newNames]);
+                setInputText('');
+                }
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const text = event.target.result;
+                    const rows = text.split('\n');
+                    const extractedNames = rows.map(row => {
+                    const cleanRow = row.replace(/['"]+/g, ''); 
+                    return cleanRow.split(',')[0].trim();
+                    }).filter(name => name.length > 0);
+                    
+                    setNames(prev => [...prev, ...extractedNames]);
+                };
+                reader.readAsText(file);
+                }
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            };
+
+            const clearNames = () => {
+                setNames([]);
+                setSelectedName(null);
+                setHighlightedIndex(null);
+                setShowWinnerModal(false);
+            };
+
+            const pickRandomName = () => {
+                if (names.length === 0) return;
+                
+                // Reset states
+                setShowWinnerModal(false);
+                setSelectedName(null);
+
+                if (!animationEnabled) {
+                const randomIndex = Math.floor(Math.random() * names.length);
+                const winner = names[randomIndex];
+                setSelectedName(winner);
+                setHighlightedIndex(randomIndex);
+                setTimeout(() => setShowWinnerModal(true), 100);
+                } else {
+                setIsAnimating(true);
+                
+                const configs = [
+                    { start: 150, decay: 20, count: 15 }, // Slow
+                    { start: 80, decay: 10, count: 30 },  // Normal
+                    { start: 40, decay: 5, count: 45 }    // Fast
+                ];
+
+                const config = configs[speedLevel];
+                
+                const runAnimation = (currentSpeed, count) => {
+                    // Pick a random index to highlight
+                    const visualIndex = Math.floor(Math.random() * names.length);
+                    setHighlightedIndex(visualIndex);
+
+                    if (count < config.count) {
+                    const newSpeed = currentSpeed + (count * (config.decay / 10)); 
+                    setTimeout(() => runAnimation(newSpeed, count + 1), currentSpeed);
+                    } else {
+                    // Finish
+                    const finalIndex = Math.floor(Math.random() * names.length);
+                    const winner = names[finalIndex];
+                    
+                    setHighlightedIndex(finalIndex);
+                    setSelectedName(winner);
+                    setIsAnimating(false);
+                    
+                    // Small delay before flying up
+                    setTimeout(() => {
+                        setShowWinnerModal(true);
+                    }, 400);
+                    }
+                };
+
+                runAnimation(config.start, 0);
+                }
+            };
+
+            const removeWinner = () => {
+                if (highlightedIndex !== null) {
+                setNames(prev => prev.filter((_, i) => i !== highlightedIndex));
+                }
+                setShowWinnerModal(false);
+                setSelectedName(null);
+                setHighlightedIndex(null);
+            };
+
+            const closeWinnerModal = () => {
+                setShowWinnerModal(false);
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col">
+                {/* Header */}
+                <header className={`${theme.primary} text-white shadow-lg relative z-30 shrink-0`}>
+                    <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center space-x-4">
+                        <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center overflow-hidden border-4 border-yellow-400 shadow-md flex-shrink-0">
+                        <img 
+                            src="FMSWarriors.gif" 
+                            alt="Logo" 
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                            e.target.onerror = null; 
+                            e.target.src = "https://placehold.co/100x100?text=FW"; 
+                            }}
+                        />
+                        </div>
+                        <div>
+                        <h1 className="text-xl md:text-2xl font-bold tracking-tight text-yellow-400 drop-shadow-sm">Fairview Warriors</h1>
+                        <p className="text-green-100 text-xs font-medium">Random Name Selector</p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-4 bg-green-800 p-2 rounded-lg bg-opacity-50">
+                        {/* Speed Control */}
+                        <div className="flex items-center space-x-2 border-r border-green-600 pr-4 mr-2">
+                        <IconGauge size={16} className="text-yellow-400" />
+                        <div className="flex flex-col">
+                            <span className="text-[10px] uppercase font-bold text-green-100 mb-0 leading-none">Speed</span>
+                            <input 
+                            type="range" 
+                            min="0" 
+                            max="2" 
+                            step="1"
+                            value={speedLevel}
+                            onChange={(e) => setSpeedLevel(parseInt(e.target.value))}
+                            className="w-20 h-1.5 bg-green-900 rounded-lg appearance-none cursor-pointer accent-yellow-400 mt-1"
+                            />
+                        </div>
+                        </div>
+
+                        {/* Animation Toggle */}
+                        <div className="flex items-center space-x-3">
+                        <span className="text-sm font-medium text-white">Animation:</span>
+                        <button 
+                            onClick={() => setAnimationEnabled(!animationEnabled)}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 focus:ring-offset-green-700 ${animationEnabled ? 'bg-yellow-400' : 'bg-gray-400'}`}
+                        >
+                            <span className={`${animationEnabled ? 'translate-x-4' : 'translate-x-1'} inline-block h-3 w-3 transform rounded-full bg-white transition-transform`} />
+                        </button>
+                        </div>
+                    </div>
+                    </div>
+                </header>
+
+                <main className="container mx-auto px-4 py-6 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
+                    
+                    {/* Left Column: Input Controls */}
+                    <div className="lg:w-1/3 flex flex-col space-y-4 shrink-0">
+                    <div className="bg-white rounded-xl shadow-md overflow-hidden border-t-4 border-green-600">
+                        <div className="p-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                        <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm">
+                            <IconUsers size={16} className="text-green-600" />
+                            Student List
+                        </h2>
+                        <span className="text-xs font-semibold bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                            {names.length} Students
+                        </span>
+                        </div>
+                        
+                        <div className="p-4 space-y-3">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Add names (paste list)</label>
+                            <textarea 
+                            className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                            placeholder="John Doe&#10;Jane Smith&#10;..."
+                            value={inputText}
+                            onChange={handleTextChange}
+                            ></textarea>
+                            <button 
+                            onClick={handleAddNames}
+                            disabled={!inputText.trim()}
+                            className="mt-2 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+                            >
+                            Add to List
+                            </button>
+                        </div>
+
+                        <div className="relative py-1">
+                            <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-200"></div>
+                            </div>
+                            <div className="relative flex justify-center text-xs">
+                            <span className="px-2 bg-white text-gray-400">OR</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            accept=".csv,.txt"
+                            onChange={handleFileUpload}
+                            className="hidden" 
+                            />
+                            <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-green-500 hover:bg-green-50 p-3 rounded-lg transition-all text-gray-600 font-medium text-sm"
+                            >
+                            <IconUpload size={16} />
+                            Upload CSV / Text File
+                            </button>
+                        </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col flex-1 min-h-[200px]">
+                        <div className="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                            <h3 className="font-semibold text-gray-700 text-sm">Current Roster</h3>
+                            <button 
+                            onClick={clearNames}
+                            className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1 font-medium"
+                            >
+                            <IconTrash size={12} /> Clear All
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 max-h-[300px]">
+                        {names.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400 text-sm italic p-4">
+                            No names added yet.
+                            </div>
+                        ) : (
+                            <ul className="space-y-1">
+                            {names.map((name, idx) => (
+                                <li key={idx} className="px-3 py-2 bg-gray-50 rounded-md text-sm text-gray-700 border-l-2 border-green-500 flex justify-between items-center group">
+                                <span>{name}</span>
+                                <button 
+                                    onClick={() => setNames(prev => prev.filter((_, i) => i !== idx))}
+                                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                                >
+                                    <IconX size={12} />
+                                </button>
+                                </li>
+                            ))}
+                            </ul>
+                        )}
+                        </div>
+                    </div>
+                    </div>
+
+                    {/* Center/Right: The Grid Display */}
+                    <div className="flex-1 flex flex-col relative">
+                    
+                    {/* Main Content Area */}
+                    <div className="bg-green-800 rounded-2xl shadow-xl border-4 border-green-900 flex-1 flex flex-col relative overflow-hidden p-1">
+                        
+                        {/* Action Bar */}
+                        <div className="absolute bottom-6 left-0 right-0 z-20 flex justify-center pointer-events-none">
+                        <button
+                            onClick={pickRandomName}
+                            disabled={names.length === 0 || isAnimating}
+                            className={`
+                            pointer-events-auto
+                            group relative inline-flex items-center justify-center px-8 py-3 text-lg font-bold text-green-900 transition-all duration-200 
+                            bg-yellow-400 rounded-full shadow-lg border-2 border-yellow-300
+                            ${names.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-300 hover:scale-110 active:scale-95 hover:shadow-yellow-400/50'}
+                            `}
+                        >
+                            <IconShuffle className={`mr-2 h-5 w-5 ${isAnimating ? 'animate-spin' : ''}`} />
+                            {isAnimating ? "Choosing..." : "PICK A WARRIOR"}
+                        </button>
+                        </div>
+
+                        {/* The Grid */}
+                        <div className="flex-1 overflow-y-auto p-4 pb-24">
+                        {names.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-green-200/50">
+                            <IconUsers size={64} className="mb-4 opacity-50" />
+                            <p className="text-xl font-bold uppercase tracking-widest opacity-50">Roster Empty</p>
+                            <p className="text-sm opacity-40">Add names to the list to begin</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 auto-rows-fr">
+                            {names.map((name, idx) => (
+                                <div 
+                                key={idx}
+                                className={`
+                                    relative flex items-center justify-center p-3 text-center min-h-[60px] rounded-lg shadow-sm border-2 transition-all duration-100
+                                    ${highlightedIndex === idx 
+                                    ? 'bg-yellow-400 border-yellow-200 text-green-900 font-black scale-105 z-10 shadow-lg' 
+                                    : 'bg-white/10 border-green-700/30 text-green-100 font-medium hover:bg-white/20'
+                                    }
+                                `}
+                                >
+                                <span className="text-sm md:text-base leading-tight break-words w-full">
+                                    {name}
+                                </span>
+                                </div>
+                            ))}
+                            </div>
+                        )}
+                        </div>
+                        
+                        {/* Gradient Fade for bottom scroll */}
+                        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-green-900 via-green-900/80 to-transparent pointer-events-none z-10"></div>
+                    </div>
+
+                    {/* WINNER MODAL / FLY UP OVERLAY */}
+                    {showWinnerModal && selectedName && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+                        {/* Backdrop */}
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.3s_ease-out]" onClick={closeWinnerModal}></div>
+                        
+                        {/* Confetti container */}
+                        <Confetti active={true} />
+                        
+                        {/* Card content */}
+                        <div className="relative animate-[zoomIn_0.5s_cubic-bezier(0.34,1.56,0.64,1)]">
+                            <div className="relative bg-white rounded-3xl p-1 pb-16 pt-12 shadow-2xl border-4 border-yellow-400 max-w-lg w-full min-w-[300px] text-center overflow-hidden">
+                            
+                            {/* Decorative background in card */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-green-50 to-white"></div>
+                            <div className="absolute top-0 inset-x-0 h-32 bg-green-700 rounded-b-[50%] scale-x-150 translate-y-[-50%]"></div>
+                            
+                            {/* Content */}
+                            <div className="relative z-10 flex flex-col items-center">
+                                <div className="bg-yellow-400 text-green-900 text-xs font-black px-4 py-1 rounded-full shadow-lg mb-6 uppercase tracking-widest">
+                                The Warrior Is
+                                </div>
+                                
+                                <h2 className="text-5xl md:text-6xl font-black text-green-800 mb-2 drop-shadow-sm px-4">
+                                {selectedName}
+                                </h2>
+                                
+                                <div className="h-1 w-24 bg-yellow-400 rounded-full my-6"></div>
+                                
+                                <div className="flex gap-3 justify-center w-full px-4">
+                                <button 
+                                    onClick={removeWinner}
+                                    className="flex-1 max-w-[140px] px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <IconTrash size={16} />
+                                    Remove
+                                </button>
+                                <button 
+                                    onClick={closeWinnerModal}
+                                    className="flex-1 max-w-[140px] px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-sm transition-colors"
+                                >
+                                    Keep
+                                </button>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        </div>
+                    )}
+                    </div>
+                </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<WarriorSelector />);
+    </script>
+</body>
+</html>
